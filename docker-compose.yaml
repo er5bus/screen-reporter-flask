@@ -1,0 +1,12 @@
+version: '3.7'
+services:
+  
+  app:
+    build: .
+    restart: on-failure:5
+    env_file:
+      - ./.env
+    ports:
+      - 5000:5000
+    volumes:
+      - ./screen_reporter:/screen_reporter
