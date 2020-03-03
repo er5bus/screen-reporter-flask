@@ -18,9 +18,15 @@ class UserRegisterAPIController(generics.CreateAPIView):
     model = models.User
     schema_class = schemas.UserSchema
     unique_fields = ('email', )
+    access_token = None
+
+    def create (self, *args, **kwargs):
+        (response, code)  = super().create(self, *args, **kwargs)
+        return {**response, "access_token": self.access_token }, code
 
     def perform_create(self, instance):
         super().perform_create(instance)
+        self.access_token = create_access_token(identity=instance.pk)
         settings = models.Setting(user_pk=instance.pk, color="red", fontsize="15px", linewidth=15)
         db.session.add(settings)
         db.session.commit()
