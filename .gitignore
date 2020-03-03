@@ -169,3 +169,6 @@ Pipfile.*
 
 # wsgi
 app.*
+
+# JWT
+/jwt
