@@ -44,49 +44,11 @@ class SettingSchema(Base):
         unknown = INCLUDE
 
 
-class CardSchema(Base):
-    title = ma.String(max_length=200, required=True, validate=Length(max=200, min=1))
-    description = ma.String(max_length=500, required=True, validate=Length(max=500, min=1))
-    screenshot = ma.String(required=True)
-    data = ma.Dict(keys=ma.Str(), values=ma.Float())
-
-    integration = ma.Nested(IntegrationSchema, many=False)
-    author = ma.Nested(UserSchema, many=False)
-
-    class Meta:
-        model = models.Card
-        unknown = INCLUDE
-
-
-class TrelloBoardSchema(ma.Schema):
-    label = ma.String(attribute="name")
-    value = ma.String(attribute="id")
-
-
-class TrelloMemberSchema(ma.Schema):
-    label = ma.String(attribute="full_name")
-    value = ma.String(attribute="id")
-
-
-class TrelloLabelSchema(ma.Schema):
-    label = ma.String(attribute="color")
-    value = ma.String(attribute="id")
-
-
-class TrelloListSchema(ma.Schema):
-    label = ma.String(attribute="name")
-    value = ma.String(attribute="id")
-
-
 class TrelloCardSchema(ma.Schema):
-    name = ma.String(
-        data_key="name", required=True, validate=Length(max=100, min=1))
-    desc = ma.String(data_key="description",
-                     required=True, validate=Length(max=500, min=1))
-    board_id = ma.String(
-        data_key="board", required=True, validate=Length(max=100, min=1))
-    board_list_id = ma.String(
-        data_key="list", required=True, validate=Length(max=100, min=1))
+    name = ma.String(data_key="name", required=True, validate=Length(max=100, min=1))
+    desc = ma.String(data_key="description", required=True, validate=Length(max=500, min=1))
+    board_id = ma.String(data_key="board", required=True, validate=Length(max=100, min=1))
+    board_list_id = ma.String(data_key="list", required=True, validate=Length(max=100, min=1))
     attachment = ma.String(required=True)
     labels = ma.List(ma.String(), required=False)
     members = ma.List(ma.String(), required=False)
