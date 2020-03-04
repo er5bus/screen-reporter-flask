@@ -1,4 +1,4 @@
-# screen-reporter-flask
+# Screen Reporter API
 Back end of Report visual bugs directly into your existing issue tracking tool like Trello.
 
 # Requirements
