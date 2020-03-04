@@ -24,6 +24,7 @@ class UserRegisterAPIController(generics.CreateAPIView):
         (response, code)  = super().create(self, *args, **kwargs)
         return {**response, "access_token": self.access_token }, code
 
+
     def perform_create(self, instance):
         super().perform_create(instance)
         self.access_token = create_access_token(identity=instance.pk)
@@ -34,6 +35,13 @@ class UserRegisterAPIController(generics.CreateAPIView):
 
 class UserResetPasswordAPIController(generics.MethodView):
     methods = ['POST']
+    message_txt = """Hello {}!
+
+Your new password is {}
+
+Best Regards,
+Latech Team.
+"""
 
     def post(self, *args, **kwargs):
         user = models.User.query.filter_by(email=kwargs.get("email")).one_or_none()
@@ -42,17 +50,10 @@ class UserResetPasswordAPIController(generics.MethodView):
             user.password = plain_password
             db.session.commit()
             message = Message(subject="Reset Password", sender=current_app.config['FLASK_MAIL_SENDER'], recipients=[user.email])
-            message.body = """
-            Hello {}!
-            Your new password is {}
-            Best Regards,
-            Latech Team.
-            """.format(user.fullname, plain_password)
+            message.body = self.message_txt.format(user.fullname, plain_password)
             mail.send(message=message)
-            return { "Success": "Your new password has been sent to your mail." }, 200
 
-        return {"Oops": "User does not exists."}, 400
-
+        return { "Success": "Your new password has been sent to your mail." }, 200
 
 
 class UserLogoutAPIController(generics.MethodView):

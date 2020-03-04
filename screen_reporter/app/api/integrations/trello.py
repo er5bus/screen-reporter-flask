@@ -3,80 +3,83 @@ from .. import api
 from marshmallow.exceptions import ValidationError
 from flask import current_app, request, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from trello import TrelloClient
-from collections import namedtuple
+from trello import TrelloClient, Member, Label
 
 
-class TrelloBoardAPIView(generics.MethodView):
-    methods = ['GET']
+class TrelloBaseAPIView(generics.MethodView):
     decorators = [jwt_required]
+
+    def get_current_integration(self):
+        return models.Integration.query.filter_by(user_pk=get_jwt_identity(), active=True).one_or_none()
+
+    def get_trello_client(self):
+        currentIntegration = self.get_current_integration()
+        if currentIntegration:
+            return TrelloClient(api_key=current_app.config['TRELLO_APP_KEY'], api_secret=currentIntegration.api_key)
+        return None
+
+
+class TrelloBoardAPIView(TrelloBaseAPIView):
+    methods = ['GET']
 
     def dumps(self, data):
         return [ dict(label=item.name, value=item.id) for item in data ]
 
     def get(self, *args, **kwargs):
-        currentIntegration = models.Integration.query.filter_by(user_pk=get_jwt_identity(), active=True).one_or_none()
-        if currentIntegration:
-            trello = TrelloClient(api_key=current_app.config['TRELLO_APP_KEY'], api_secret=currentIntegration.api_key)
+        trello = self.get_trello_client()
+        if trello:
             data = trello.list_boards()
             return {'items': self.dumps(data)}, 200
         return abort(400, {'Oops': 'Invalid Trello integration.'})
 
 
-class TrelloMembersAPIView(generics.MethodView):
+class TrelloMembersAPIView(TrelloBaseAPIView):
     methods = ['GET']
-    decorators = [jwt_required]
 
     def dumps(self, data):
         return [ dict(label=item.full_name, value=item.id) for item in data ]
 
     def get(self, *args, **kwargs):
-        currentIntegration = models.Integration.query.filter_by(user_pk=get_jwt_identity(), active=True).one_or_none()
-        if currentIntegration:
-            trello = TrelloClient(api_key=current_app.config['TRELLO_APP_KEY'], api_secret=currentIntegration.api_key)
+        trello = self.get_trello_client()
+        if trello:
             data = trello.get_board(kwargs.get('board_id', None)).all_members()
             return {'items': self.dumps(data)}, 200
         return abort(400, {'Oops': 'Invalid Trello integration.'})
 
 
-class TrelloLabelAPIView(generics.MethodView):
+class TrelloLabelAPIView(TrelloBaseAPIView):
     methods = ['GET']
-    decorators = [jwt_required]
 
     def dumps(self, data):
         return [ dict(label=item.color, value=item.id) for item in data ]
 
     def get(self, *args, **kwargs):
-        currentIntegration = models.Integration.query.filter_by(user_pk=get_jwt_identity(), active=True).one_or_none()
-        if currentIntegration:
-            trello = TrelloClient(api_key=current_app.config['TRELLO_APP_KEY'], api_secret=currentIntegration.api_key)
+        trello = self.get_trello_client()
+        if trello:
             data = trello.get_board(kwargs.get('board_id', None)).get_labels()
             return {'items': self.dumps(data)}, 200
         return abort(400, {'Oops': 'Invalid Trello integration.'})
 
 
-class TrelloListAPIView(generics.MethodView):
+class TrelloListAPIView(TrelloBaseAPIView):
     methods = ['GET']
-    decorators = [jwt_required]
 
     def dumps(self, data):
         return [ dict(label=item.name, value=item.id) for item in data ]
 
     def get(self, *args, **kwargs):
-        currentIntegration = models.Integration.query.filter_by(user_pk=get_jwt_identity(), active=True).one_or_none()
-        if currentIntegration:
-            trello = TrelloClient(api_key=current_app.config['TRELLO_APP_KEY'], api_secret=currentIntegration.api_key)
+        trello = self.get_trello_client()
+        if trello:
             data = trello.get_board(kwargs.get('board_id', None)).all_lists()
             return {'items': self.dumps(data)}, 200
         return abort(400, {'Oops': 'Invalid Trello integration.'})
 
 
-class TrelloCreateCardAPIView(generics.MethodView):
+class TrelloCreateCardAPIView(TrelloBaseAPIView):
     methods = ['POST']
-    decorators = [jwt_required]
     cardSchema = schemas.TrelloCardSchema()
 
-    def get_attachment_file(self, attachment):
+    def _get_attachment_file(self, attachment):
         import base64, re
         header, encoded = attachment.split(",", 1)
         image = re.search(r"^data:(\w+)\/(?P<extension>\w+);", header)
@@ -84,30 +87,32 @@ class TrelloCreateCardAPIView(generics.MethodView):
         data = base64.b64decode(encoded)
         return filename, image.group("extension"), base64.b64decode(encoded)
 
+    def _create_card(self, data):
+        trello_client = self.get_trello_client()
+        trello_list = trello_client.get_board(data.get('board_id')).get_list(data.get('board_list_id'))
+        card = trello_list.add_card(name=data.get('name'), desc=data.get('desc'))
+        (filename, mime_type, file_content) = self._get_attachment_file(data.get('attachment'))
+        card.attach(name=filename, mimeType=mime_type, file=file_content)
+
+        for member_id in data.get('members', tuple()):
+            member_id and card.add_member(Member(trello_client, member_id))
+
+        for label_id in data.get('labels', tuple()):
+            label_id and card.add_label(Label(trello_client, label_id, ""))
+
+        return card
+
     def post(self, *args, **kwargs):
         currentIntegration = models.Integration.query.filter_by(user_pk=get_jwt_identity(), active=True).one_or_none()
-        if not currentIntegration:
-            return abort(400, {'Oops': 'Invalid Trello integration.'})
-
-        try:
-            data = self.cardSchema.load(request.json)
-        except ValidationError as err:
-            abort(400, err.messages)
-        else:
-            trello = TrelloClient(api_key=current_app.config['TRELLO_APP_KEY'], api_secret=currentIntegration.api_key)
-            trello_list = trello.get_board(data.get('board_id')).get_list(data.get('board_list_id'))
-            card = trello_list.add_card(name=data.get('name'), desc=data.get('desc'))
-            attachment = self.get_attachment_file(data.get('attachment'))
-            card.attach(name=attachment[0], mimeType=attachment[1], file=attachment[2])
-            if data.get('labels', None):
-                Label = namedtuple('Label', ['id'])
-                for label_id in data.get('labels'):
-                    label_id and card.add_label(Label(label_id))
-            if data.get('members', None):
-                Member = namedtuple('Member', ['id'])
-                for member_id in data.get('members'):
-                    member_id and card.add_member(Member(member_id))
-            return {'Good Job': 'Your trello card has been created.'}, 200
+        if currentIntegration:
+            try:
+                data = self.cardSchema.load(request.json)
+            except ValidationError as err:
+                abort(400, err.messages)
+            else:
+                card = self._create_card(data)
+                return {'Good Job': 'Your trello card has been created.'}, 200
+        return abort(400, {'Oops': 'Invalid Trello integration.'})
 
 
 api.add_url_rule('/trello/boards', view_func=TrelloBoardAPIView.as_view('board_resource'), methods=TrelloBoardAPIView.methods)

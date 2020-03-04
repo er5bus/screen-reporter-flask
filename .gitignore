@@ -172,3 +172,6 @@ app.*
 
 # JWT
 /jwt
+
+# vim extensions
+.ycm_extra_conf.py
