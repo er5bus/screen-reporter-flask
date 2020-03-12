@@ -11,7 +11,6 @@ docker;
 ``` env
 # Docker env varibles
 FLASK_RUN_MIGRATION=1
-FLASK_ENV=PROD
 
 # Mail configurations
 MAIL_SERVER=smtp.googlemail.com
@@ -26,7 +25,7 @@ TRELLO_APP_KEY=trello key
 
 # App configurations
 #development, testing, production
-FLASK_CONFIG=production 
+FLASK_ENV=production 
 FLASK_DEBUG=1
 SECRET_KEY=some key
 #DEV_DATABASE_URL=sqlite:///data/data-dev.sqlite
