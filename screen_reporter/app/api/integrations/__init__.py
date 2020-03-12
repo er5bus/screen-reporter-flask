@@ -12,10 +12,9 @@ class IntegrationCollectionAPI(generics.ListCreateAPIView):
 
     def perform_create(self, instance):
         user_pk = get_jwt_identity()
-        for integration in models.Integration.query.filter_by(user_pk=user_pk, active=True).all():
-            integration.active = False
+        integration = models.Integration.query.filter_by(user_pk=user_pk, active=True).one_or_none()
+        instance.active =  False if integration else True
         instance.user_pk = user_pk
-        instance.active = True
         super().perform_create(instance)
 
     def get_object_query(self, **kwargs):
@@ -34,11 +33,11 @@ class IntegrationDocumentAPI(generics.RetrieveUpdateDestroyAPIView):
         kwargs = { **kwargs, 'user_pk': get_jwt_identity() }
         return super().get_object_query(**kwargs)
 
-    def perform_update(self, instance):
+    def perform_update(self, old_instance, instance_updated):
         for integration in models.Integration.query.filter_by(user_pk=get_jwt_identity(), active=True).all():
             integration.active = False
-        instance.active = True
-        super().perform_update(instance)
+        instance_updated.active = True
+        super().perform_update(old_instance, instance_updated)
 
 
 api.add_url_rule('/integrations', view_func=IntegrationCollectionAPI.as_view('integration_collection_resource'), methods=IntegrationCollectionAPI.methods)

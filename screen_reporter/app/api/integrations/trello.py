@@ -28,9 +28,13 @@ class TrelloBoardAPIView(TrelloBaseAPIView):
     def get(self, *args, **kwargs):
         trello = self.get_trello_client()
         if trello:
-            data = trello.list_boards()
-            return {'items': self.dumps(data)}, 200
-        return abort(400, {'Oops': 'Invalid Trello integration.'})
+            try:
+                data = trello.list_boards()
+            except:
+                return abort(401, {'Invalide Trello key': 'We can\'t connect to your trello account'})
+            else:
+                return {'items': self.dumps(data)}, 200
+        return abort(400, {'Oops': 'No active Integration existe.'})
 
 
 class TrelloMembersAPIView(TrelloBaseAPIView):
@@ -44,7 +48,7 @@ class TrelloMembersAPIView(TrelloBaseAPIView):
         if trello:
             data = trello.get_board(kwargs.get('board_id', None)).all_members()
             return {'items': self.dumps(data)}, 200
-        return abort(400, {'Oops': 'Invalid Trello integration.'})
+        return abort(400, {'Oops': 'No active Integration existe.'})
 
 
 class TrelloLabelAPIView(TrelloBaseAPIView):
@@ -58,7 +62,7 @@ class TrelloLabelAPIView(TrelloBaseAPIView):
         if trello:
             data = trello.get_board(kwargs.get('board_id', None)).get_labels()
             return {'items': self.dumps(data)}, 200
-        return abort(400, {'Oops': 'Invalid Trello integration.'})
+        return abort(400, {'Oops': 'No active Integration existe.'})
 
 
 class TrelloListAPIView(TrelloBaseAPIView):
@@ -72,7 +76,7 @@ class TrelloListAPIView(TrelloBaseAPIView):
         if trello:
             data = trello.get_board(kwargs.get('board_id', None)).all_lists()
             return {'items': self.dumps(data)}, 200
-        return abort(400, {'Oops': 'Invalid Trello integration.'})
+        return abort(400, {'Oops': 'No active Integration existe.'})
 
 
 class TrelloCreateCardAPIView(TrelloBaseAPIView):
@@ -112,7 +116,7 @@ class TrelloCreateCardAPIView(TrelloBaseAPIView):
             else:
                 card = self._create_card(data)
                 return {'Good Job': 'Your trello card has been created.'}, 200
-        return abort(400, {'Oops': 'Invalid Trello integration.'})
+        return abort(400, {'Oops': 'No active Integration existe.'})
 
 
 api.add_url_rule('/trello/boards', view_func=TrelloBoardAPIView.as_view('board_resource'), methods=TrelloBoardAPIView.methods)

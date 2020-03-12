@@ -13,7 +13,7 @@ class Config:
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     FLASK_MAIL_SENDER = os.getenv('FLASK_MAIL_SENDER')
 
-    TRELLO_APP_KEY = "22ac062e43a16df65c5325dd965f3d1a"
+    TRELLO_APP_KEY =  os.getenv("TRELLO_APP_KEY", "trello api key")
     JWT_ACCESS_TOKEN_EXPIRES = False
     JWT_BLACKLIST_ENABLED = True
     JWT_BLACKLIST_TOKEN_CHECKS = ['access']
